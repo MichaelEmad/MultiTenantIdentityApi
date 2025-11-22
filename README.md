@@ -65,7 +65,7 @@ MultiTenantIdentityApi/
   - Password management (change, reset, forgot)
   - Email confirmation
   - Two-factor authentication (2FA)
-- ✅ **JWT Authentication** with refresh tokens
+- ✅ **JWT Authentication** with refresh tokens and RSA certificate support
 - ✅ **Role-Based Authorization** with tenant isolation
 - ✅ **Entity Framework Core** with SQL Server
 - ✅ **Swagger/OpenAPI** documentation
@@ -289,9 +289,71 @@ Once the API is running, visit:
 - Angular Router
 - Angular Forms (Reactive)
 
+## 🔐 JWT Security with RSA Certificates
+
+The API supports both symmetric and asymmetric (RSA) JWT signing:
+
+### Development (Symmetric Key)
+```json
+{
+  "JwtSettings": {
+    "UseRsaCertificate": false,
+    "SecretKey": "YourSecretKeyHereMustBeAtLeast32CharactersLong!!"
+  }
+}
+```
+
+### Production (RSA Certificate - Recommended)
+```json
+{
+  "JwtSettings": {
+    "UseRsaCertificate": true,
+    "RsaPrivateKeyPath": "/app/certificates/jwt-signing.pfx",
+    "RsaCertificatePassword": "YourCertificatePassword"
+  }
+}
+```
+
+**Benefits of RSA Certificates:**
+- ✅ Asymmetric encryption (private key signs, public key verifies)
+- ✅ Industry standard for production environments
+- ✅ Better security for distributed systems
+- ✅ Easier key rotation and management
+- ✅ Public keys can be safely distributed
+
+📖 **Full Guide**: See [docs/RSA_CERTIFICATE_SETUP.md](docs/RSA_CERTIFICATE_SETUP.md) for complete instructions on:
+- Generating RSA certificates (OpenSSL, PowerShell, .NET CLI)
+- Configuration for different environments
+- Deployment strategies (Docker, Kubernetes, Azure)
+- Certificate rotation
+- Troubleshooting
+
+### Quick Start - Generate Certificate
+
+**Using OpenSSL:**
+```bash
+# Generate private key
+openssl genrsa -out jwt-private.key 2048
+
+# Generate certificate
+openssl req -new -x509 -key jwt-private.key -out jwt-public.crt -days 365
+
+# Create PFX file
+openssl pkcs12 -export -out jwt-signing.pfx -inkey jwt-private.key -in jwt-public.crt
+```
+
+**Using PowerShell:**
+```powershell
+$cert = New-SelfSignedCertificate -Subject "CN=JWT Signing" -KeyAlgorithm RSA -KeyLength 2048
+$password = ConvertTo-SecureString -String "YourPassword" -Force -AsPlainText
+Export-PfxCertificate -Cert $cert -FilePath "jwt-signing.pfx" -Password $password
+```
+
 ## 🚨 Security Considerations
 
-- [ ] Update JWT secret key (use Azure Key Vault or similar in production)
+- [x] **RSA Certificate Support** for JWT signing (production-ready)
+- [ ] Generate and deploy RSA certificates for production
+- [ ] Store certificate passwords in Azure Key Vault or similar
 - [ ] Enable HTTPS (`RequireHttpsMetadata = true`)
 - [ ] Configure proper CORS policy
 - [ ] Enable email confirmation (`RequireConfirmedEmail = true`)
@@ -300,6 +362,7 @@ Once the API is running, visit:
 - [ ] Add authorization policies for admin endpoints
 - [ ] Set up database backups
 - [ ] Configure health checks with database checks
+- [ ] Set up certificate rotation schedule (6-12 months)
 
 ## 📄 License
 
