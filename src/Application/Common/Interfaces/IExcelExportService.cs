@@ -1,3 +1,5 @@
+using MultiTenantIdentityApi.Application.Common.Models;
+
 namespace MultiTenantIdentityApi.Application.Common.Interfaces;
 
 /// <summary>
@@ -8,7 +10,7 @@ public interface IExcelExportService
     /// <summary>
     /// Export data to Excel file
     /// </summary>
-    Task<byte[]> ExportToExcelAsync<T>(
+    Task<Result<byte[]>> ExportToExcelAsync<T>(
         IEnumerable<T> data,
         string sheetName = "Sheet1",
         CancellationToken cancellationToken = default) where T : class;
@@ -16,7 +18,7 @@ public interface IExcelExportService
     /// <summary>
     /// Export data to Excel with custom columns
     /// </summary>
-    Task<byte[]> ExportToExcelAsync<T>(
+    Task<Result<byte[]>> ExportToExcelAsync<T>(
         IEnumerable<T> data,
         Dictionary<string, Func<T, object>> columnMappings,
         string sheetName = "Sheet1",
@@ -25,7 +27,7 @@ public interface IExcelExportService
     /// <summary>
     /// Export multiple sheets to Excel
     /// </summary>
-    Task<byte[]> ExportMultipleSheetsAsync(
+    Task<Result<byte[]>> ExportMultipleSheetsAsync(
         Dictionary<string, object> sheets,
         CancellationToken cancellationToken = default);
 }

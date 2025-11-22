@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MultiTenantIdentityApi.API.Extensions;
 using MultiTenantIdentityApi.Application.Common.Interfaces;
+using MultiTenantIdentityApi.Application.Common.Models;
 
 namespace MultiTenantIdentityApi.API.Controllers;
 
@@ -38,119 +40,81 @@ public class FilesController : ControllerBase
     /// Upload a file
     /// </summary>
     [HttpPost("upload")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UploadFile(
         IFormFile file,
         [FromQuery] string? folder = null)
     {
-        if (file == null || file.Length == 0)
+        // Validate file
+        var validationResult = ValidateFile(file);
+        if (!validationResult.Succeeded)
         {
-            return BadRequest(new { error = "No file uploaded" });
+            return validationResult.ToActionResult();
         }
 
-        // Validate file size
-        if (file.Length > MaxFileSize)
-        {
-            return BadRequest(new { error = $"File size exceeds maximum allowed size of {MaxFileSize / (1024 * 1024)}MB" });
-        }
+        using var stream = file.OpenReadStream();
+        var result = await _fileStorageService.UploadFileAsync(
+            stream,
+            file.FileName,
+            file.ContentType,
+            folder);
 
-        // Validate file extension
-        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-        if (!_allowedExtensions.Contains(extension))
-        {
-            return BadRequest(new { error = $"File type '{extension}' is not allowed" });
-        }
-
-        try
-        {
-            using var stream = file.OpenReadStream();
-            var result = await _fileStorageService.UploadFileWithMetadataAsync(
-                stream,
-                file.FileName,
-                file.ContentType,
-                folder);
-
-            if (!result.Success)
-            {
-                return BadRequest(new { error = result.ErrorMessage });
-            }
-
-            return Ok(new
-            {
-                success = true,
-                filePath = result.FilePath,
-                fileUrl = result.FileUrl,
-                fileSize = result.FileSize,
-                contentType = result.ContentType
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error uploading file: {FileName}", file.FileName);
-            return StatusCode(500, new { error = "An error occurred while uploading the file" });
-        }
+        return result.ToActionResult();
     }
 
     /// <summary>
     /// Upload multiple files
     /// </summary>
     [HttpPost("upload-multiple")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> UploadMultipleFiles(
         List<IFormFile> files,
         [FromQuery] string? folder = null)
     {
         if (files == null || files.Count == 0)
         {
-            return BadRequest(new { error = "No files uploaded" });
+            return Result.Failure("No files provided").ToActionResult();
         }
 
-        var results = new List<object>();
+        var uploadedFiles = new List<object>();
         var errors = new List<string>();
 
         foreach (var file in files)
         {
             if (file.Length == 0) continue;
 
-            // Validate file size
-            if (file.Length > MaxFileSize)
+            // Validate file
+            var validationResult = ValidateFile(file);
+            if (!validationResult.Succeeded)
             {
-                errors.Add($"{file.FileName}: File size exceeds maximum allowed size");
-                continue;
-            }
-
-            // Validate file extension
-            var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
-            if (!_allowedExtensions.Contains(extension))
-            {
-                errors.Add($"{file.FileName}: File type not allowed");
+                errors.Add($"{file.FileName}: {string.Join(", ", validationResult.Errors)}");
                 continue;
             }
 
             try
             {
                 using var stream = file.OpenReadStream();
-                var result = await _fileStorageService.UploadFileWithMetadataAsync(
+                var result = await _fileStorageService.UploadFileAsync(
                     stream,
                     file.FileName,
                     file.ContentType,
                     folder);
 
-                if (result.Success)
+                if (result.Succeeded && result.Data != null)
                 {
-                    results.Add(new
+                    uploadedFiles.Add(new
                     {
                         fileName = file.FileName,
-                        filePath = result.FilePath,
-                        fileUrl = result.FileUrl,
-                        fileSize = result.FileSize
+                        result.Data.FilePath,
+                        result.Data.FileUrl,
+                        result.Data.FileSize
                     });
                 }
                 else
                 {
-                    errors.Add($"{file.FileName}: {result.ErrorMessage}");
+                    errors.Add($"{file.FileName}: {string.Join(", ", result.Errors)}");
                 }
             }
             catch (Exception ex)
@@ -160,12 +124,14 @@ public class FilesController : ControllerBase
             }
         }
 
-        return Ok(new
+        var multiUploadResult = new
         {
-            success = errors.Count == 0,
-            uploaded = results,
+            succeeded = errors.Count == 0,
+            uploadedFiles,
             errors
-        });
+        };
+
+        return Ok(multiUploadResult);
     }
 
     /// <summary>
@@ -173,35 +139,32 @@ public class FilesController : ControllerBase
     /// </summary>
     [HttpGet("download/{*filePath}")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DownloadFile(string filePath)
     {
         var result = await _fileStorageService.DownloadFileAsync(filePath);
 
-        if (!result.Success || result.FileStream == null)
+        if (!result.Succeeded || result.Data == null)
         {
-            return NotFound(new { error = result.ErrorMessage ?? "File not found" });
+            return result.ToActionResultOrNotFound();
         }
 
-        return File(result.FileStream, result.ContentType ?? "application/octet-stream", result.FileName);
+        return File(
+            result.Data.FileStream,
+            result.Data.ContentType ?? "application/octet-stream",
+            result.Data.FileName);
     }
 
     /// <summary>
     /// Delete a file
     /// </summary>
     [HttpDelete("{*filePath}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Result), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteFile(string filePath)
     {
-        var deleted = await _fileStorageService.DeleteFileAsync(filePath);
-
-        if (!deleted)
-        {
-            return NotFound(new { error = "File not found" });
-        }
-
-        return Ok(new { success = true, message = "File deleted successfully" });
+        var result = await _fileStorageService.DeleteFileAsync(filePath);
+        return result.ToActionResultOrNotFound();
     }
 
     /// <summary>
@@ -212,18 +175,45 @@ public class FilesController : ControllerBase
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     public async Task<IActionResult> FileExists(string filePath)
     {
-        var exists = await _fileStorageService.FileExistsAsync(filePath);
-        return exists ? Ok() : NotFound();
+        var result = await _fileStorageService.FileExistsAsync(filePath);
+
+        if (!result.Succeeded)
+        {
+            return BadRequest();
+        }
+
+        return result.Data == true ? Ok() : NotFound();
     }
 
     /// <summary>
     /// Get files in folder
     /// </summary>
     [HttpGet("folder/{*folder}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(Result<object>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetFilesInFolder(string folder)
     {
-        var files = await _fileStorageService.GetFilesInFolderAsync(folder);
-        return Ok(new { folder, files });
+        var result = await _fileStorageService.GetFilesInFolderAsync(folder);
+        return result.ToActionResult();
+    }
+
+    private Result ValidateFile(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return Result.Failure("No file uploaded or file is empty");
+        }
+
+        if (file.Length > MaxFileSize)
+        {
+            return Result.Failure($"File size exceeds maximum allowed size of {MaxFileSize / (1024 * 1024)}MB");
+        }
+
+        var extension = Path.GetExtension(file.FileName).ToLowerInvariant();
+        if (!_allowedExtensions.Contains(extension))
+        {
+            return Result.Failure($"File type '{extension}' is not allowed");
+        }
+
+        return Result.Success();
     }
 }

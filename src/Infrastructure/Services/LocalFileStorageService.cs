@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using MultiTenantIdentityApi.Application.Common.Interfaces;
+using MultiTenantIdentityApi.Application.Common.Models;
+using MultiTenantIdentityApi.Application.DTOs.Files;
 
 namespace MultiTenantIdentityApi.Infrastructure.Services;
 
@@ -29,7 +31,7 @@ public class LocalFileStorageService : IFileStorageService
         }
     }
 
-    public async Task<string> UploadFileAsync(
+    public async Task<Result<FileUploadDto>> UploadFileAsync(
         Stream fileStream,
         string fileName,
         string? contentType = null,
@@ -38,28 +40,16 @@ public class LocalFileStorageService : IFileStorageService
     {
         try
         {
-            var result = await UploadFileWithMetadataAsync(
-                fileStream, fileName, contentType, folder, null, cancellationToken);
+            if (fileStream == null || !fileStream.CanRead)
+            {
+                return Result<FileUploadDto>.Failure("Invalid file stream");
+            }
 
-            return result.Success ? result.FilePath! : throw new InvalidOperationException(result.ErrorMessage);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error uploading file: {FileName}", fileName);
-            throw;
-        }
-    }
+            if (string.IsNullOrWhiteSpace(fileName))
+            {
+                return Result<FileUploadDto>.Failure("File name is required");
+            }
 
-    public async Task<FileUploadResult> UploadFileWithMetadataAsync(
-        Stream fileStream,
-        string fileName,
-        string? contentType = null,
-        string? folder = null,
-        Dictionary<string, string>? metadata = null,
-        CancellationToken cancellationToken = default)
-    {
-        try
-        {
             // Generate unique file name
             var uniqueFileName = $"{Guid.NewGuid()}_{Path.GetFileName(fileName)}";
             var folderPath = string.IsNullOrEmpty(folder)
@@ -78,137 +68,185 @@ public class LocalFileStorageService : IFileStorageService
                 : Path.Combine(folder, uniqueFileName);
 
             // Save file
+            long fileSize;
             using (var fileStreamDest = new FileStream(filePath, FileMode.Create, FileAccess.Write))
             {
                 await fileStream.CopyToAsync(fileStreamDest, cancellationToken);
+                fileSize = fileStreamDest.Length;
             }
-
-            var fileInfo = new FileInfo(filePath);
 
             _logger.LogInformation("File uploaded successfully: {FilePath}", relativePath);
 
-            return new FileUploadResult
+            var uploadDto = new FileUploadDto
             {
-                Success = true,
                 FilePath = relativePath,
                 FileUrl = $"{_baseUrl}/{relativePath.Replace("\\", "/")}",
-                FileSize = fileInfo.Length,
-                ContentType = contentType
+                FileSize = fileSize,
+                ContentType = contentType,
+                UploadedAt = DateTime.UtcNow
             };
+
+            return Result<FileUploadDto>.Success(uploadDto, "File uploaded successfully");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error uploading file: {FileName}", fileName);
-            return new FileUploadResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message
-            };
+            return Result<FileUploadDto>.Failure($"Failed to upload file: {ex.Message}");
         }
     }
 
-    public async Task<FileDownloadResult> DownloadFileAsync(
+    public async Task<Result<FileDownloadDto>> DownloadFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
         try
         {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return Result<FileDownloadDto>.Failure("File path is required");
+            }
+
             var fullPath = Path.Combine(_storagePath, filePath);
 
             if (!File.Exists(fullPath))
             {
-                return new FileDownloadResult
-                {
-                    Success = false,
-                    ErrorMessage = "File not found"
-                };
+                return Result<FileDownloadDto>.Failure("File not found");
             }
 
             var fileInfo = new FileInfo(fullPath);
             var fileStream = new FileStream(fullPath, FileMode.Open, FileAccess.Read, FileShare.Read);
 
-            return new FileDownloadResult
+            var downloadDto = new FileDownloadDto
             {
-                Success = true,
                 FileStream = fileStream,
                 FileName = Path.GetFileName(filePath),
                 ContentType = GetContentType(filePath),
                 FileSize = fileInfo.Length
             };
+
+            return Result<FileDownloadDto>.Success(downloadDto);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error downloading file: {FilePath}", filePath);
-            return new FileDownloadResult
-            {
-                Success = false,
-                ErrorMessage = ex.Message
-            };
+            return Result<FileDownloadDto>.Failure($"Failed to download file: {ex.Message}");
         }
     }
 
-    public Task<bool> DeleteFileAsync(
+    public Task<Result> DeleteFileAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var fullPath = Path.Combine(_storagePath, filePath);
-
-            if (File.Exists(fullPath))
+            if (string.IsNullOrWhiteSpace(filePath))
             {
-                File.Delete(fullPath);
-                _logger.LogInformation("File deleted: {FilePath}", filePath);
-                return Task.FromResult(true);
+                return Task.FromResult(Result.Failure("File path is required"));
             }
 
-            return Task.FromResult(false);
+            var fullPath = Path.Combine(_storagePath, filePath);
+
+            if (!File.Exists(fullPath))
+            {
+                return Task.FromResult(Result.Failure("File not found"));
+            }
+
+            File.Delete(fullPath);
+            _logger.LogInformation("File deleted: {FilePath}", filePath);
+
+            return Task.FromResult(Result.Success("File deleted successfully"));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error deleting file: {FilePath}", filePath);
-            return Task.FromResult(false);
+            return Task.FromResult(Result.Failure($"Failed to delete file: {ex.Message}"));
         }
     }
 
-    public Task<bool> FileExistsAsync(
+    public Task<Result<bool>> FileExistsAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        var fullPath = Path.Combine(_storagePath, filePath);
-        return Task.FromResult(File.Exists(fullPath));
+        try
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return Task.FromResult(Result<bool>.Failure("File path is required"));
+            }
+
+            var fullPath = Path.Combine(_storagePath, filePath);
+            var exists = File.Exists(fullPath);
+
+            return Task.FromResult(Result<bool>.Success(exists));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error checking file existence: {FilePath}", filePath);
+            return Task.FromResult(Result<bool>.Failure($"Failed to check file existence: {ex.Message}"));
+        }
     }
 
-    public Task<string> GetFileUrlAsync(
+    public Task<Result<string>> GetFileUrlAsync(
         string filePath,
         CancellationToken cancellationToken = default)
     {
-        var url = $"{_baseUrl}/{filePath.Replace("\\", "/")}";
-        return Task.FromResult(url);
+        try
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+            {
+                return Task.FromResult(Result<string>.Failure("File path is required"));
+            }
+
+            var url = $"{_baseUrl}/{filePath.Replace("\\", "/")}";
+            return Task.FromResult(Result<string>.Success(url));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting file URL: {FilePath}", filePath);
+            return Task.FromResult(Result<string>.Failure($"Failed to get file URL: {ex.Message}"));
+        }
     }
 
-    public Task<IEnumerable<string>> GetFilesInFolderAsync(
+    public Task<Result<IEnumerable<FileInfoDto>>> GetFilesInFolderAsync(
         string folder,
         CancellationToken cancellationToken = default)
     {
         try
         {
-            var folderPath = Path.Combine(_storagePath, folder);
+            var folderPath = string.IsNullOrEmpty(folder)
+                ? _storagePath
+                : Path.Combine(_storagePath, folder);
 
             if (!Directory.Exists(folderPath))
             {
-                return Task.FromResult(Enumerable.Empty<string>());
+                return Task.FromResult(Result<IEnumerable<FileInfoDto>>.Success(
+                    Enumerable.Empty<FileInfoDto>(),
+                    "Folder not found or empty"));
             }
 
             var files = Directory.GetFiles(folderPath)
-                .Select(f => Path.GetRelativePath(_storagePath, f));
+                .Select(f =>
+                {
+                    var fileInfo = new FileInfo(f);
+                    var relativePath = Path.GetRelativePath(_storagePath, f);
 
-            return Task.FromResult(files);
+                    return new FileInfoDto
+                    {
+                        FilePath = relativePath,
+                        FileName = Path.GetFileName(f),
+                        FileUrl = $"{_baseUrl}/{relativePath.Replace("\\", "/")}",
+                        FileSize = fileInfo.Length,
+                        ContentType = GetContentType(f),
+                        CreatedAt = fileInfo.CreationTimeUtc
+                    };
+                });
+
+            return Task.FromResult(Result<IEnumerable<FileInfoDto>>.Success(files));
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error getting files in folder: {Folder}", folder);
-            return Task.FromResult(Enumerable.Empty<string>());
+            return Task.FromResult(Result<IEnumerable<FileInfoDto>>.Failure($"Failed to get files: {ex.Message}"));
         }
     }
 

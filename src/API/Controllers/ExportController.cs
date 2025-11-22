@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using MultiTenantIdentityApi.API.Extensions;
 using MultiTenantIdentityApi.Application.Common.Interfaces;
 
 namespace MultiTenantIdentityApi.API.Controllers;
@@ -32,31 +33,29 @@ public class ExportController : ControllerBase
     /// </summary>
     [HttpGet("tenants")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ExportTenants()
     {
-        try
+        var tenantsResult = await _tenantService.GetAllTenantsAsync();
+
+        if (!tenantsResult.Succeeded || tenantsResult.Data == null)
         {
-            var tenantsResult = await _tenantService.GetAllTenantsAsync();
-
-            if (tenantsResult.Data == null)
-            {
-                return BadRequest(new { error = "Failed to retrieve tenants" });
-            }
-
-            var excelData = await _excelExportService.ExportToExcelAsync(
-                tenantsResult.Data,
-                sheetName: "Tenants");
-
-            return File(
-                excelData,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"Tenants_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+            return tenantsResult.ToActionResult();
         }
-        catch (Exception ex)
+
+        var excelResult = await _excelExportService.ExportToExcelAsync(
+            tenantsResult.Data,
+            sheetName: "Tenants");
+
+        if (!excelResult.Succeeded || excelResult.Data == null)
         {
-            _logger.LogError(ex, "Error exporting tenants to Excel");
-            return StatusCode(500, new { error = "An error occurred while exporting data" });
+            return excelResult.ToActionResult();
         }
+
+        return File(
+            excelResult.Data,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"Tenants_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 
     /// <summary>
@@ -64,32 +63,34 @@ public class ExportController : ControllerBase
     /// </summary>
     [HttpPost("generic")]
     [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ExportGeneric(
         [FromBody] GenericExportRequest request)
     {
-        try
+        if (request.Data == null || !request.Data.Any())
         {
-            if (request.Data == null || !request.Data.Any())
+            return BadRequest(new
             {
-                return BadRequest(new { error = "No data provided for export" });
-            }
-
-            var excelData = await _excelExportService.ExportMultipleSheetsAsync(
-                new Dictionary<string, object>
-                {
-                    { request.SheetName ?? "Data", request.Data }
-                });
-
-            return File(
-                excelData,
-                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                $"{request.FileName ?? "Export"}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+                succeeded = false,
+                errors = new[] { "No data provided for export" }
+            });
         }
-        catch (Exception ex)
+
+        var excelResult = await _excelExportService.ExportMultipleSheetsAsync(
+            new Dictionary<string, object>
+            {
+                { request.SheetName ?? "Data", request.Data }
+            });
+
+        if (!excelResult.Succeeded || excelResult.Data == null)
         {
-            _logger.LogError(ex, "Error exporting generic data to Excel");
-            return StatusCode(500, new { error = "An error occurred while exporting data" });
+            return excelResult.ToActionResult();
         }
+
+        return File(
+            excelResult.Data,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"{request.FileName ?? "Export"}_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
     }
 }
 

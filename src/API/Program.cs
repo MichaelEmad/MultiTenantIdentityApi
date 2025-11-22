@@ -1,5 +1,6 @@
 using MultiTenantIdentityApi.Application;
 using MultiTenantIdentityApi.Infrastructure;
+using MultiTenantIdentityApi.API.Middleware;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +69,9 @@ builder.Services.AddHealthChecks();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline
+
+// Global exception handler - must be first
+app.UseGlobalExceptionHandler();
 
 // Swagger (available in all environments for API documentation)
 app.UseSwagger();
