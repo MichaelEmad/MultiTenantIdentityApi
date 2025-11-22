@@ -1,16 +1,16 @@
-using Finbuckle.MultiTenant.Abstractions;
 using Microsoft.AspNetCore.Identity;
 
 namespace MultiTenantIdentityApi.Domain.Entities;
 
 /// <summary>
 /// Custom application role with multi-tenant support
+/// Uses Finbuckle.MultiTenant v7 with explicit TenantId property
 /// </summary>
-public class ApplicationRole : IdentityRole, IMultiTenant
+public class ApplicationRole : IdentityRole
 {
     /// <summary>
     /// The tenant identifier this role belongs to
-    /// Required by IMultiTenant interface for Finbuckle multi-tenancy
+    /// Used by Finbuckle multi-tenancy for data isolation
     /// </summary>
     public string? TenantId { get; set; }
 

@@ -68,7 +68,7 @@ public static class DependencyInjection
         services.AddMultiTenant<AppTenantInfo>()
             .WithEFCoreStore<TenantDbContext, AppTenantInfo>()
             .WithClaimStrategy("tenant_id")
-            .WithHeaderStrategy()
+            .WithHeaderStrategy("X-Tenant-Id")
             .WithRouteStrategy("tenant")
             .WithQueryStringStrategy("tenant");
 
