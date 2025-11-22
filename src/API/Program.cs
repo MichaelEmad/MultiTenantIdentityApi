@@ -1,3 +1,4 @@
+using Finbuckle.MultiTenant;
 using MultiTenantIdentityApi.Application;
 using MultiTenantIdentityApi.Infrastructure;
 using MultiTenantIdentityApi.API.Handlers;
@@ -10,9 +11,9 @@ using OpenTelemetry.Trace;
 // Configure Serilog
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", LogLevel.Warning)
-    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", LogLevel.Information)
-    .MinimumLevel.Override("System", LogLevel.Warning)
+    .MinimumLevel.Override("Microsoft", (LogEventLevel)LogLevel.Warning)
+    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", (LogEventLevel)LogLevel.Information)
+    .MinimumLevel.Override("System", (LogEventLevel)LogLevel.Warning)
     .Enrich.FromLogContext()
     .Enrich.WithEnvironmentName()
     .Enrich.WithMachineName()
@@ -151,9 +152,9 @@ try
         });
     });
 
-    // Add health checks
-    builder.Services.AddHealthChecks()
-        .AddDbContextCheck<MultiTenantIdentityApi.Infrastructure.Persistence.ApplicationDbContext>("database");
+    //// Add health checks
+    //builder.Services.AddHealthChecks()
+    //    .AddDbContextCheck<MultiTenantIdentityApi.Infrastructure.Persistence.ApplicationDbContext>("database");
 
     var app = builder.Build();
 

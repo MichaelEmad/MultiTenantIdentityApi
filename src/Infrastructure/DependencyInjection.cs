@@ -67,10 +67,10 @@ public static class DependencyInjection
     {
         services.AddMultiTenant<AppTenantInfo>()
             .WithEFCoreStore<TenantDbContext, AppTenantInfo>()
-            .WithClaimStrategy("tenant_id")
+            .WithClaimStrategy()
             .WithHeaderStrategy("X-Tenant-Id")
-            .WithRouteStrategy("tenant")
-            .WithQueryStringStrategy("tenant");
+            .WithRouteStrategy("tenant");
+         
 
         return services;
     }
