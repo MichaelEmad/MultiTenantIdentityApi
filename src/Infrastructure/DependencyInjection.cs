@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -7,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Finbuckle.MultiTenant;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using MultiTenantIdentityApi.Application.Common.Interfaces;
 using MultiTenantIdentityApi.Domain.Entities;
 using MultiTenantIdentityApi.Infrastructure.Configurations;
@@ -22,7 +22,7 @@ namespace MultiTenantIdentityApi.Infrastructure;
 /// </summary>
 public static class DependencyInjection
 {
-    public static IServiceCollection AddInfrastructure(
+    public static IServiceCollection AddInfrastructure (
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -44,7 +44,7 @@ public static class DependencyInjection
         return services;
     }
 
-    private static IServiceCollection AddDatabaseContexts(
+    private static IServiceCollection AddDatabaseContexts (
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -61,21 +61,21 @@ public static class DependencyInjection
         return services;
     }
 
-    private static IServiceCollection AddMultiTenancy(
+    private static IServiceCollection AddMultiTenancy (
         this IServiceCollection services,
         IConfiguration configuration)
     {
         services.AddMultiTenant<AppTenantInfo>()
             .WithEFCoreStore<TenantDbContext, AppTenantInfo>()
             .WithClaimStrategy("tenant_id")
-            .WithHeaderStrategy("X-Tenant-Id")
+            .WithHeaderStrategy()
             .WithRouteStrategy("tenant")
             .WithQueryStringStrategy("tenant");
 
         return services;
     }
 
-    private static IServiceCollection AddIdentityServices(this IServiceCollection services)
+    private static IServiceCollection AddIdentityServices (this IServiceCollection services)
     {
         services.AddIdentity<ApplicationUser, ApplicationRole>(options =>
         {
@@ -104,7 +104,7 @@ public static class DependencyInjection
         return services;
     }
 
-    private static IServiceCollection AddJwtAuthentication(
+    private static IServiceCollection AddJwtAuthentication (
         this IServiceCollection services,
         IConfiguration configuration)
     {
@@ -193,7 +193,7 @@ public static class DependencyInjection
         return services;
     }
 
-    private static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    private static IServiceCollection AddApplicationServices (this IServiceCollection services)
     {
         // Register application services
         services.AddScoped<ITokenService, TokenService>();

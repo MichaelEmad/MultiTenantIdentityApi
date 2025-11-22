@@ -6,7 +6,7 @@ namespace MultiTenantIdentityApi.Domain.Entities;
 /// <summary>
 /// Custom application role with multi-tenant support
 /// </summary>
-public class ApplicationRole : IdentityRole, IMultiTenant
+public class ApplicationRole : IdentityRole
 {
     /// <summary>
     /// The tenant identifier this role belongs to

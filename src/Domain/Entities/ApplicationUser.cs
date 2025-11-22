@@ -6,7 +6,7 @@ namespace MultiTenantIdentityApi.Domain.Entities;
 /// <summary>
 /// Custom application user with multi-tenant support
 /// </summary>
-public class ApplicationUser : IdentityUser, IMultiTenant
+public class ApplicationUser : IdentityUser
 {
     /// <summary>
     /// The tenant identifier this user belongs to
