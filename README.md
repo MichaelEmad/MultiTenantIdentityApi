@@ -1,268 +1,297 @@
-# Multi-Tenant Identity API
+# Multi-Tenant Identity API - Clean Architecture
 
-A full-featured ASP.NET Core 8 API with multi-tenant support using Finbuckle.MultiTenant, complete Identity endpoints, JWT authentication, and Entity Framework Core with SQL Server.
+A full-stack multi-tenant identity management system built with **ASP.NET Core 8** (Clean Architecture) and **Angular 17**, featuring complete authentication, authorization, and tenant isolation.
 
-## Features
+## 🏗️ Architecture
 
-- **Multi-Tenant Architecture**: Using Finbuckle.MultiTenant with EF Core Store
-- **Flexible Tenant Resolution**: Combined strategy supporting Claims, Headers, Route, and Query parameters
-- **Full Identity Endpoints**: Registration, Login, Password Management, Email Confirmation, 2FA
-- **JWT Authentication**: Secure token-based authentication with refresh tokens
-- **Role-Based Authorization**: Tenant-scoped role management
-- **User Management**: Full CRUD operations with tenant isolation
-- **Swagger/OpenAPI**: Complete API documentation with JWT support
-
-## Project Structure
+This solution follows **Clean Architecture** principles with clear separation of concerns:
 
 ```
 MultiTenantIdentityApi/
-├── Configurations/
-│   ├── ClaimStrategy.cs           # Custom claim-based tenant resolution
-│   ├── CombinedTenantStrategy.cs  # Combined resolution strategy
-│   └── JwtSettings.cs             # JWT configuration model
-├── Controllers/
-│   ├── AuthController.cs          # Authentication endpoints
-│   ├── RolesController.cs         # Role management endpoints
-│   ├── TenantsController.cs       # Tenant management endpoints
-│   └── UsersController.cs         # User management endpoints
-├── Data/
-│   ├── ApplicationDbContext.cs    # Multi-tenant Identity DbContext
-│   └── TenantDbContext.cs         # Tenant store DbContext
-├── Extensions/
-│   └── ServiceCollectionExtensions.cs  # DI configuration helpers
-├── Middleware/
-│   └── TenantValidationMiddleware.cs   # Tenant validation
-├── Models/
-│   ├── ApplicationUser.cs         # Custom Identity user with multi-tenant support
-│   ├── AppTenantInfo.cs           # Tenant information model
-│   └── DTOs/
-│       ├── AuthDtos.cs            # Authentication DTOs
-│       └── TenantDtos.cs          # Tenant DTOs
-├── Services/
-│   ├── AuthService.cs             # Authentication business logic
-│   ├── RoleService.cs             # Role management logic
-│   ├── TenantService.cs           # Tenant management logic
-│   └── TokenService.cs            # JWT token generation
-├── appsettings.json               # Application configuration
-├── appsettings.Development.json   # Development configuration
-├── Program.cs                     # Application entry point
-└── MultiTenantIdentityApi.csproj  # Project file
+├── src/
+│   ├── Domain/                     # Enterprise Business Rules
+│   │   ├── Entities/              # Domain entities (ApplicationUser, ApplicationRole, AppTenantInfo)
+│   │   ├── Interfaces/            # Repository and domain service interfaces
+│   │   ├── Exceptions/            # Domain-specific exceptions
+│   │   └── Common/                # Base entities and value objects
+│   │
+│   ├── Application/               # Application Business Rules
+│   │   ├── Common/
+│   │   │   ├── Interfaces/       # Application service interfaces
+│   │   │   ├── Models/           # Result patterns and common models
+│   │   │   └── Behaviours/       # MediatR pipeline behaviors
+│   │   ├── DTOs/                 # Data Transfer Objects
+│   │   └── Features/             # Use cases organized by feature
+│   │
+│   ├── Infrastructure/            # External Concerns
+│   │   ├── Persistence/          # EF Core DbContexts
+│   │   ├── Identity/             # ASP.NET Core Identity implementation
+│   │   ├── Services/             # External service implementations
+│   │   └── Configurations/       # Configuration classes
+│   │
+│   ├── API/                       # Presentation Layer (Web API)
+│   │   ├── Controllers/          # API Controllers
+│   │   ├── Middleware/           # Custom middleware
+│   │   ├── Extensions/           # Service extensions
+│   │   └── Program.cs            # Application entry point
+│   │
+│   └── Web/                       # Angular Frontend
+│       ├── src/
+│       │   ├── app/
+│       │   │   ├── core/         # Singleton services, guards, interceptors
+│       │   │   ├── shared/       # Shared components and services
+│       │   │   └── features/     # Feature modules (auth, tenants, dashboard)
+│       │   ├── assets/
+│       │   └── environments/
+│       └── package.json
+│
+└── MultiTenantIdentityApi.sln
+
 ```
 
-## Getting Started
+## 🎯 Key Features
+
+### Backend (ASP.NET Core 8)
+
+- ✅ **Clean Architecture** with proper layer separation
+- ✅ **Multi-Tenant Architecture** using Finbuckle.MultiTenant
+- ✅ **Multiple Tenant Resolution Strategies**:
+  - JWT Claims (`tenant_id`)
+  - HTTP Headers (`X-Tenant-Id`)
+  - Route parameters (`/api/{tenant}/...`)
+  - Query strings (`?tenant=xxx`)
+- ✅ **Full Identity Management**:
+  - User registration and login
+  - Password management (change, reset, forgot)
+  - Email confirmation
+  - Two-factor authentication (2FA)
+- ✅ **JWT Authentication** with refresh tokens
+- ✅ **Role-Based Authorization** with tenant isolation
+- ✅ **Entity Framework Core** with SQL Server
+- ✅ **Swagger/OpenAPI** documentation
+- ✅ **CQRS Pattern** with MediatR (Application layer ready)
+- ✅ **Repository Pattern** and Unit of Work
+
+### Frontend (Angular 17)
+
+- ✅ **Standalone Components** (latest Angular pattern)
+- ✅ **Feature-Based Architecture**
+- ✅ **Reactive Forms** with validation
+- ✅ **HTTP Interceptors** for auth and tenant headers
+- ✅ **Route Guards** for authentication
+- ✅ **Signal-based State Management**
+- ✅ **Lazy Loading** for optimal performance
+- ✅ **TypeScript** with strict mode
+- ✅ **SCSS** for styling
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
 - .NET 8.0 SDK
+- Node.js 18+ and npm
 - SQL Server (or SQL Server Express/LocalDB)
-- Visual Studio 2022 / VS Code / Rider
+- Visual Studio 2022 / VS Code / Rider (optional)
+- Angular CLI (optional, for development)
 
-### Installation
+### Backend Setup
 
-1. Clone or copy the project files
-2. Update the connection string in `appsettings.json`
-3. Run the following commands:
+1. **Update Connection String**
 
-```bash
-# Restore packages
-dotnet restore
+   Edit `src/API/appsettings.json`:
+   ```json
+   {
+     "ConnectionStrings": {
+       "DefaultConnection": "Server=(localdb)\\mssqllocaldb;Database=MultiTenantIdentityDb;Trusted_Connection=true;"
+     }
+   }
+   ```
 
-# Create initial migration for TenantDbContext
-dotnet ef migrations add InitialTenants -c TenantDbContext -o Migrations/Tenants
+2. **Update JWT Settings**
 
-# Create initial migration for ApplicationDbContext
-dotnet ef migrations add InitialIdentity -c ApplicationDbContext -o Migrations/Identity
+   Edit `src/API/appsettings.json`:
+   ```json
+   {
+     "JwtSettings": {
+       "SecretKey": "Your-Secret-Key-At-Least-32-Characters-Long!!",
+       "Issuer": "MultiTenantIdentityApi",
+       "Audience": "MultiTenantIdentityApi"
+     }
+   }
+   ```
 
-# Apply migrations
-dotnet ef database update -c TenantDbContext
-dotnet ef database update -c ApplicationDbContext
+3. **Install Dependencies & Run Migrations**
 
-# Run the application
-dotnet run
-```
+   ```bash
+   # Navigate to Infrastructure project
+   cd src/Infrastructure
 
-### Configuration
+   # Create migrations
+   dotnet ef migrations add InitialCreate -s ../API -c TenantDbContext -o Persistence/Migrations/Tenant
+   dotnet ef migrations add InitialIdentity -s ../API -c ApplicationDbContext -o Persistence/Migrations/Identity
 
-Update `appsettings.json` with your settings:
+   # Apply migrations
+   dotnet ef database update -s ../API -c TenantDbContext
+   dotnet ef database update -s ../API -c ApplicationDbContext
+   ```
 
-```json
-{
-  "ConnectionStrings": {
-    "DefaultConnection": "Your-Connection-String"
-  },
-  "JwtSettings": {
-    "SecretKey": "Your-32-Character-Or-Longer-Secret-Key",
-    "Issuer": "YourApp",
-    "Audience": "YourApp",
-    "AccessTokenExpirationMinutes": 60,
-    "RefreshTokenExpirationDays": 7
-  }
-}
-```
+4. **Run the API**
 
-## API Usage
+   ```bash
+   cd src/API
+   dotnet run
+   ```
 
-### Tenant Resolution
+   The API will be available at `http://localhost:5000` (or check console output)
 
-The API supports multiple tenant resolution strategies (in priority order):
+### Frontend Setup
 
-1. **JWT Claim** (`tenant_id`): For authenticated requests
-2. **Header** (`X-Tenant-Id`): For login/register and external calls
-3. **Route** (`/api/{tenant}/...`): For tenant-specific routes
-4. **Query** (`?tenant=xxx`): For query-based resolution
+1. **Install Dependencies**
+
+   ```bash
+   cd src/Web
+   npm install
+   ```
+
+2. **Update API URL**
+
+   Edit `src/Web/src/environments/environment.ts`:
+   ```typescript
+   export const environment = {
+     production: false,
+     apiUrl: 'http://localhost:5000/api'  // Update to match your API URL
+   };
+   ```
+
+3. **Run the Angular App**
+
+   ```bash
+   npm start
+   # or
+   ng serve
+   ```
+
+   The app will be available at `http://localhost:4200`
+
+## 📚 API Documentation
+
+Once the API is running, visit:
+- **Swagger UI**: `http://localhost:5000/swagger`
 
 ### Authentication Flow
 
-#### 1. Create a Tenant (Admin)
+1. **Create a Tenant** (if using seeded data, skip this)
+   ```http
+   POST /api/tenants
+   Content-Type: application/json
 
-```http
-POST /api/tenants
-Content-Type: application/json
+   {
+     "identifier": "acme",
+     "name": "Acme Corporation"
+   }
+   ```
 
-{
-  "identifier": "acme",
-  "name": "Acme Corporation"
-}
-```
+2. **Register a User**
+   ```http
+   POST /api/auth/register
+   Content-Type: application/json
+   X-Tenant-Id: acme
 
-#### 2. Register a User
+   {
+     "email": "user@example.com",
+     "password": "SecureP@ss123",
+     "confirmPassword": "SecureP@ss123",
+     "firstName": "John",
+     "lastName": "Doe"
+   }
+   ```
 
-```http
-POST /api/auth/register
-Content-Type: application/json
-X-Tenant-Id: acme
+3. **Login**
+   ```http
+   POST /api/auth/login
+   Content-Type: application/json
+   X-Tenant-Id: acme
 
-{
-  "email": "user@example.com",
-  "password": "SecureP@ss123",
-  "confirmPassword": "SecureP@ss123",
-  "firstName": "John",
-  "lastName": "Doe"
-}
-```
+   {
+     "email": "user@example.com",
+     "password": "SecureP@ss123"
+   }
+   ```
 
-#### 3. Login
+4. **Use Protected Endpoints**
+   ```http
+   GET /api/auth/me
+   Authorization: Bearer {your-jwt-token}
+   ```
 
-```http
-POST /api/auth/login
-Content-Type: application/json
-X-Tenant-Id: acme
+## 🔐 Multi-Tenancy
 
-{
-  "email": "user@example.com",
-  "password": "SecureP@ss123"
-}
-```
+### Tenant Resolution Priority
 
-Response:
-```json
-{
-  "succeeded": true,
-  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
-  "refreshToken": "abc123...",
-  "accessTokenExpiration": "2024-01-15T12:00:00Z",
-  "user": {
-    "id": "user-id",
-    "email": "user@example.com",
-    "tenantId": "tenant-1"
-  }
-}
-```
+1. **JWT Claim** (`tenant_id`) - For authenticated requests
+2. **HTTP Header** (`X-Tenant-Id`) - For login/register
+3. **Route Parameter** (`/api/{tenant}/...`)
+4. **Query String** (`?tenant=xxx`)
 
-#### 4. Use Protected Endpoints
+### Data Isolation
 
-```http
-GET /api/auth/me
-Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
-```
+- Each user belongs to a specific tenant
+- Query filters automatically applied by EF Core
+- Email/username uniqueness is per-tenant
+- Roles are tenant-scoped
 
-### API Endpoints
+## 📁 Project Structure Details
 
-#### Authentication (`/api/auth`)
+### Domain Layer
+- **No dependencies** on other layers
+- Contains core business entities and logic
+- Defines interfaces (contracts) for infrastructure
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/register` | Register new user | No (Header required) |
-| POST | `/login` | Login with credentials | No (Header required) |
-| POST | `/refresh-token` | Refresh access token | No |
-| POST | `/logout` | Logout user | Yes |
-| POST | `/change-password` | Change password | Yes |
-| POST | `/forgot-password` | Request password reset | No |
-| POST | `/reset-password` | Reset password with token | No |
-| POST | `/confirm-email` | Confirm email | No |
-| POST | `/resend-confirmation` | Resend confirmation email | No |
-| GET | `/me` | Get current user | Yes |
-| PUT | `/me` | Update profile | Yes |
-| DELETE | `/me` | Delete account | Yes |
+### Application Layer
+- Depends **only** on Domain layer
+- Contains business logic and use cases
+- Defines DTOs and application service interfaces
+- Ready for CQRS with MediatR
 
-#### Two-Factor Authentication (`/api/auth/2fa`)
+### Infrastructure Layer
+- Implements interfaces from Domain and Application layers
+- Contains EF Core, Identity, and external service implementations
+- Database migrations and configurations
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| POST | `/enable` | Enable 2FA | Yes |
-| POST | `/verify` | Verify 2FA setup | Yes |
-| POST | `/disable` | Disable 2FA | Yes |
-| POST | `/login` | Login with 2FA code | No |
-| POST | `/recovery-codes` | Generate recovery codes | Yes |
-| POST | `/recovery-login` | Login with recovery code | No |
+### API Layer
+- Depends on Application and Infrastructure layers
+- Contains controllers, middleware, and API configuration
+- Entry point for HTTP requests
 
-#### Tenants (`/api/tenants`)
+### Web Layer (Angular)
+- **Core**: Singleton services, guards, interceptors
+- **Shared**: Reusable components and utilities
+- **Features**: Feature modules with lazy loading
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/` | Get all tenants |
-| GET | `/{id}` | Get tenant by ID |
-| GET | `/by-identifier/{identifier}` | Get tenant by identifier |
-| POST | `/` | Create new tenant |
-| PUT | `/{id}` | Update tenant |
-| DELETE | `/{id}` | Delete tenant |
-| POST | `/{id}/activate` | Activate tenant |
-| POST | `/{id}/deactivate` | Deactivate tenant |
+## 🛠️ Technologies Used
 
-#### Users (`/api/users`)
+### Backend
+- ASP.NET Core 8.0
+- Entity Framework Core 8.0
+- ASP.NET Core Identity
+- Finbuckle.MultiTenant 7.0
+- MediatR 12.2
+- FluentValidation 11.9
+- AutoMapper 12.0
+- JWT Bearer Authentication
+- Swagger/OpenAPI
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/` | Get all users (paginated) | Yes |
-| GET | `/{id}` | Get user by ID | Yes |
-| POST | `/{id}/activate` | Activate user | Yes |
-| POST | `/{id}/deactivate` | Deactivate user | Yes |
-| POST | `/{id}/lockout` | Lock out user | Yes |
-| POST | `/{id}/unlock` | Unlock user | Yes |
-| DELETE | `/{id}` | Delete user | Yes |
+### Frontend
+- Angular 17 (Standalone Components)
+- TypeScript 5.2
+- RxJS 7.8
+- SCSS
+- Angular Router
+- Angular Forms (Reactive)
 
-#### Roles (`/api/roles`)
+## 🚨 Security Considerations
 
-| Method | Endpoint | Description | Auth Required |
-|--------|----------|-------------|---------------|
-| GET | `/` | Get all roles | Yes |
-| GET | `/{id}` | Get role by ID | Yes |
-| POST | `/` | Create new role | Yes |
-| DELETE | `/{id}` | Delete role | Yes |
-| POST | `/assign` | Assign role to user | Yes |
-| POST | `/remove` | Remove role from user | Yes |
-| GET | `/{roleName}/users` | Get users in role | Yes |
-
-## Multi-Tenant Data Isolation
-
-The API ensures complete data isolation between tenants:
-
-1. **Users**: Each user belongs to a specific tenant
-2. **Roles**: Roles are tenant-scoped
-3. **Query Filters**: EF Core automatically filters data by tenant
-4. **Unique Constraints**: Email/Username uniqueness is per-tenant
-
-## Security Considerations
-
-- JWT tokens contain the `tenant_id` claim for tenant resolution
-- Tenant validation middleware prevents cross-tenant access
-- Password hashing uses ASP.NET Core Identity defaults (PBKDF2)
-- Lockout protection against brute-force attacks
-- Refresh tokens stored securely with expiration
-
-## Production Checklist
-
-- [ ] Update JWT secret key (use secrets manager)
+- [ ] Update JWT secret key (use Azure Key Vault or similar in production)
 - [ ] Enable HTTPS (`RequireHttpsMetadata = true`)
 - [ ] Configure proper CORS policy
 - [ ] Enable email confirmation (`RequireConfirmedEmail = true`)
@@ -272,6 +301,10 @@ The API ensures complete data isolation between tenants:
 - [ ] Set up database backups
 - [ ] Configure health checks with database checks
 
-## License
+## 📄 License
 
 MIT License
+
+---
+
+**Built with ❤️ using Clean Architecture principles**
