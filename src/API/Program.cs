@@ -3,30 +3,15 @@ using MultiTenantIdentityApi.Application;
 using MultiTenantIdentityApi.Infrastructure;
 using MultiTenantIdentityApi.API.Handlers;
 using Serilog;
-using Serilog.Events;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 
-// Configure Serilog
+// Configure Serilog from appsettings.json
+// Create bootstrap logger for startup errors
 Log.Logger = new LoggerConfiguration()
-    .MinimumLevel.Information()
-    .MinimumLevel.Override("Microsoft", (LogEventLevel)LogLevel.Warning)
-    .MinimumLevel.Override("Microsoft.Hosting.Lifetime", (LogEventLevel)LogLevel.Information)
-    .MinimumLevel.Override("System", (LogEventLevel)LogLevel.Warning)
-    .Enrich.FromLogContext()
-    .Enrich.WithEnvironmentName()
-    .Enrich.WithMachineName()
-    .Enrich.WithThreadId()
-    .WriteTo.Console(
-        outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
-    .WriteTo.File(
-        path: "logs/log-.txt",
-        rollingInterval: RollingInterval.Day,
-        retainedFileCountLimit: 30,
-        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}")
-    .WriteTo.Seq(serverUrl: "http://localhost:5341") // Optional: Remove if not using Seq
-    .CreateLogger();
+    .WriteTo.Console()
+    .CreateBootstrapLogger();
 
 try
 {
@@ -34,8 +19,12 @@ try
 
     var builder = WebApplication.CreateBuilder(args);
 
-    // Add Serilog
-    builder.Host.UseSerilog();
+    // Configure Serilog from configuration file
+    builder.Host.UseSerilog((context, services, configuration) => configuration
+        .ReadFrom.Configuration(context.Configuration)
+        .ReadFrom.Services(services)
+        .Enrich.WithProperty("Application", "MultiTenantIdentityApi")
+        .Enrich.WithProperty("Environment", builder.Environment.EnvironmentName));
 
     // Add services to the container
     builder.Services.AddControllers();
