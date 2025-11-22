@@ -10,6 +10,7 @@ using Finbuckle.MultiTenant;
 using MultiTenantIdentityApi.Application.Common.Interfaces;
 using MultiTenantIdentityApi.Domain.Entities;
 using MultiTenantIdentityApi.Infrastructure.Configurations;
+using MultiTenantIdentityApi.Infrastructure.MultiTenancy;
 using MultiTenantIdentityApi.Infrastructure.Persistence;
 using MultiTenantIdentityApi.Infrastructure.Security;
 using MultiTenantIdentityApi.Infrastructure.Services;
