@@ -65,12 +65,22 @@ MultiTenantIdentityApi/
   - Password management (change, reset, forgot)
   - Email confirmation
   - Two-factor authentication (2FA)
-- ✅ **JWT Authentication** with refresh tokens
+- ✅ **JWT Authentication** with refresh tokens and RSA certificate support
 - ✅ **Role-Based Authorization** with tenant isolation
 - ✅ **Entity Framework Core** with SQL Server
 - ✅ **Swagger/OpenAPI** documentation
 - ✅ **CQRS Pattern** with MediatR (Application layer ready)
 - ✅ **Repository Pattern** and Unit of Work
+- ✅ **File Upload & Management**:
+  - Stream-based file operations
+  - Validation (size, type)
+  - Folder organization
+  - Multiple upload support
+- ✅ **Excel Export Service**:
+  - Generic export for any data type
+  - Custom column mappings
+  - Multi-sheet support
+  - ClosedXML integration
 
 ### Frontend (Angular 17)
 
@@ -83,6 +93,16 @@ MultiTenantIdentityApi/
 - ✅ **Lazy Loading** for optimal performance
 - ✅ **TypeScript** with strict mode
 - ✅ **SCSS** for styling
+- ✅ **Internationalization (i18n)**:
+  - English (en) and Arabic (ar) support
+  - RTL layout for Arabic
+  - JSON-based translations
+  - Language switcher component
+- ✅ **File Upload Component**:
+  - Drag & drop support
+  - Progress tracking
+  - File validation
+  - Reusable shared component
 
 ## 🚀 Getting Started
 
@@ -280,6 +300,7 @@ Once the API is running, visit:
 - AutoMapper 12.0
 - JWT Bearer Authentication
 - Swagger/OpenAPI
+- ClosedXML 0.102.2 (Excel export)
 
 ### Frontend
 - Angular 17 (Standalone Components)
@@ -288,10 +309,133 @@ Once the API is running, visit:
 - SCSS
 - Angular Router
 - Angular Forms (Reactive)
+- Custom i18n implementation (en/ar)
+
+## 🔐 JWT Security with RSA Certificates
+
+The API supports both symmetric and asymmetric (RSA) JWT signing:
+
+### Development (Symmetric Key)
+```json
+{
+  "JwtSettings": {
+    "UseRsaCertificate": false,
+    "SecretKey": "YourSecretKeyHereMustBeAtLeast32CharactersLong!!"
+  }
+}
+```
+
+### Production (RSA Certificate - Recommended)
+```json
+{
+  "JwtSettings": {
+    "UseRsaCertificate": true,
+    "RsaPrivateKeyPath": "/app/certificates/jwt-signing.pfx",
+    "RsaCertificatePassword": "YourCertificatePassword"
+  }
+}
+```
+
+**Benefits of RSA Certificates:**
+- ✅ Asymmetric encryption (private key signs, public key verifies)
+- ✅ Industry standard for production environments
+- ✅ Better security for distributed systems
+- ✅ Easier key rotation and management
+- ✅ Public keys can be safely distributed
+
+📖 **Full Guide**: See [docs/RSA_CERTIFICATE_SETUP.md](docs/RSA_CERTIFICATE_SETUP.md) for complete instructions on:
+- Generating RSA certificates (OpenSSL, PowerShell, .NET CLI)
+- Configuration for different environments
+- Deployment strategies (Docker, Kubernetes, Azure)
+- Certificate rotation
+- Troubleshooting
+
+## 📦 Additional Features
+
+### File Upload & Management
+
+The application includes a comprehensive file storage system:
+
+- **Backend**: `IFileStorageService` with local file system implementation
+- **Frontend**: Reusable `FileUploadComponent` with drag & drop
+- **Features**: File validation, progress tracking, folder organization
+- **API Endpoints**: Upload, download, delete, list files
+
+**Usage Example:**
+```html
+<app-file-upload
+  [multiple]="true"
+  [maxSize]="10"
+  [allowedTypes]="['.pdf', '.jpg', '.png']"
+  (filesUploaded)="onFilesUploaded($event)">
+</app-file-upload>
+```
+
+### Excel Export
+
+Generic Excel export service for any data type:
+
+- **Backend**: `IExcelExportService` using ClosedXML
+- **Features**: Auto-column detection, custom mappings, multi-sheet export
+- **API Endpoints**: `/api/export/tenants`, `/api/export/generic`
+
+**Usage Example:**
+```csharp
+var excelData = await _excelExportService.ExportToExcelAsync(
+    data,
+    sheetName: "Tenants");
+return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    $"Export_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+```
+
+### Internationalization (i18n)
+
+Full English and Arabic language support:
+
+- **Languages**: English (en), Arabic (ar)
+- **RTL Support**: Automatic layout switching for Arabic
+- **Translation Pipe**: `{{ 'auth.login' | translate }}`
+- **Language Switcher**: Component for easy language toggling
+- **Translation Files**: JSON-based in `src/Web/src/assets/i18n/`
+
+**Usage Example:**
+```html
+<h2>{{ 'auth.login-title' | translate }}</h2>
+<app-language-switcher></app-language-switcher>
+```
+
+📖 **Detailed Documentation**: See [docs/FEATURES.md](docs/FEATURES.md) for complete feature documentation including:
+- File upload configuration and usage
+- Excel export examples
+- Internationalization guide
+- Best practices and future enhancements
+
+### Quick Start - Generate Certificate
+
+**Using OpenSSL:**
+```bash
+# Generate private key
+openssl genrsa -out jwt-private.key 2048
+
+# Generate certificate
+openssl req -new -x509 -key jwt-private.key -out jwt-public.crt -days 365
+
+# Create PFX file
+openssl pkcs12 -export -out jwt-signing.pfx -inkey jwt-private.key -in jwt-public.crt
+```
+
+**Using PowerShell:**
+```powershell
+$cert = New-SelfSignedCertificate -Subject "CN=JWT Signing" -KeyAlgorithm RSA -KeyLength 2048
+$password = ConvertTo-SecureString -String "YourPassword" -Force -AsPlainText
+Export-PfxCertificate -Cert $cert -FilePath "jwt-signing.pfx" -Password $password
+```
 
 ## 🚨 Security Considerations
 
-- [ ] Update JWT secret key (use Azure Key Vault or similar in production)
+- [x] **RSA Certificate Support** for JWT signing (production-ready)
+- [ ] Generate and deploy RSA certificates for production
+- [ ] Store certificate passwords in Azure Key Vault or similar
 - [ ] Enable HTTPS (`RequireHttpsMetadata = true`)
 - [ ] Configure proper CORS policy
 - [ ] Enable email confirmation (`RequireConfirmedEmail = true`)
@@ -300,6 +444,7 @@ Once the API is running, visit:
 - [ ] Add authorization policies for admin endpoints
 - [ ] Set up database backups
 - [ ] Configure health checks with database checks
+- [ ] Set up certificate rotation schedule (6-12 months)
 
 ## 📄 License
 

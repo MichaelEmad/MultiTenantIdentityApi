@@ -3,30 +3,64 @@ using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using MultiTenantIdentityApi.Application.Common.Interfaces;
 using MultiTenantIdentityApi.Domain.Entities;
 using MultiTenantIdentityApi.Infrastructure.Configurations;
+using MultiTenantIdentityApi.Infrastructure.Security;
 
 namespace MultiTenantIdentityApi.Infrastructure.Services;
 
 /// <summary>
-/// JWT token service implementation
+/// JWT token service implementation with support for both symmetric and RSA signing
 /// </summary>
 public class TokenService : ITokenService
 {
     private readonly JwtSettings _jwtSettings;
     private readonly UserManager<ApplicationUser> _userManager;
-    private readonly SymmetricSecurityKey _signingKey;
+    private readonly ILogger<TokenService> _logger;
+    private readonly SigningCredentials _signingCredentials;
 
     public TokenService(
         IOptions<JwtSettings> jwtSettings,
-        UserManager<ApplicationUser> userManager)
+        UserManager<ApplicationUser> userManager,
+        ILogger<TokenService> logger,
+        IRsaCertificateService? rsaCertificateService = null)
     {
         _jwtSettings = jwtSettings.Value;
         _userManager = userManager;
-        _signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+        _logger = logger;
+
+        // Determine which signing method to use
+        if (_jwtSettings.UseRsaCertificate)
+        {
+            if (rsaCertificateService == null)
+            {
+                throw new InvalidOperationException(
+                    "RSA certificate service is not configured. " +
+                    "Either configure RSA certificates or set UseRsaCertificate to false.");
+            }
+
+            _signingCredentials = rsaCertificateService.GetSigningCredentials();
+            _logger.LogInformation(
+                "TokenService initialized with RSA certificate signing (Thumbprint: {Thumbprint})",
+                rsaCertificateService.GetCertificateThumbprint());
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(_jwtSettings.SecretKey))
+            {
+                throw new InvalidOperationException("JWT SecretKey is not configured.");
+            }
+
+            var symmetricKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
+            _signingCredentials = new SigningCredentials(symmetricKey, SecurityAlgorithms.HmacSha256);
+            _logger.LogWarning(
+                "TokenService initialized with symmetric key signing. " +
+                "Consider using RSA certificates for production environments.");
+        }
     }
 
     public async Task<string> GenerateAccessTokenAsync(ApplicationUser user, IEnumerable<string> roles)
@@ -103,14 +137,12 @@ public class TokenService : ITokenService
 
     private string GenerateAccessToken(IEnumerable<Claim> claims, DateTime expiration)
     {
-        var credentials = new SigningCredentials(_signingKey, SecurityAlgorithms.HmacSha256);
-
         var token = new JwtSecurityToken(
             issuer: _jwtSettings.Issuer,
             audience: _jwtSettings.Audience,
             claims: claims,
             expires: expiration,
-            signingCredentials: credentials
+            signingCredentials: _signingCredentials
         );
 
         return new JwtSecurityTokenHandler().WriteToken(token);

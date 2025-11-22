@@ -12,6 +12,9 @@
 
     <!-- Required for multi-tenant abstractions -->
     <PackageReference Include="Finbuckle.MultiTenant" Version="7.0.2" />
+
+    <!-- Specification Pattern -->
+    <PackageReference Include="Ardalis.Specification" Version="8.0.0" />
   </ItemGroup>
 
 </Project>

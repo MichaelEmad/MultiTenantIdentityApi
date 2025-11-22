@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Finbuckle.MultiTenant;
@@ -10,6 +11,7 @@ using MultiTenantIdentityApi.Application.Common.Interfaces;
 using MultiTenantIdentityApi.Domain.Entities;
 using MultiTenantIdentityApi.Infrastructure.Configurations;
 using MultiTenantIdentityApi.Infrastructure.Persistence;
+using MultiTenantIdentityApi.Infrastructure.Security;
 using MultiTenantIdentityApi.Infrastructure.Services;
 
 namespace MultiTenantIdentityApi.Infrastructure;
@@ -110,7 +112,59 @@ public static class DependencyInjection
 
         services.Configure<JwtSettings>(configuration.GetSection(JwtSettings.SectionName));
 
-        var key = Encoding.UTF8.GetBytes(jwtSettings.SecretKey);
+        // Configure RSA certificate service if enabled
+        SecurityKey validationKey;
+
+        if (jwtSettings.UseRsaCertificate)
+        {
+            if (string.IsNullOrWhiteSpace(jwtSettings.RsaPrivateKeyPath))
+            {
+                throw new InvalidOperationException(
+                    "UseRsaCertificate is enabled but RsaPrivateKeyPath is not configured.");
+            }
+
+            // Register RSA certificate service as singleton (certificate is reused)
+            services.AddSingleton<IRsaCertificateService>(sp =>
+            {
+                var logger = sp.GetRequiredService<ILogger<RsaCertificateService>>();
+
+                try
+                {
+                    var certificateService = new RsaCertificateService(
+                        jwtSettings.RsaPrivateKeyPath,
+                        jwtSettings.RsaCertificatePassword);
+
+                    logger.LogInformation(
+                        "RSA certificate loaded successfully from: {Path} (Thumbprint: {Thumbprint})",
+                        jwtSettings.RsaPrivateKeyPath,
+                        certificateService.GetCertificateThumbprint());
+
+                    return certificateService;
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex,
+                        "Failed to load RSA certificate from: {Path}",
+                        jwtSettings.RsaPrivateKeyPath);
+                    throw;
+                }
+            });
+
+            // Use RSA public key for token validation
+            var rsaService = services.BuildServiceProvider().GetRequiredService<IRsaCertificateService>();
+            validationKey = rsaService.GetValidationKey();
+        }
+        else
+        {
+            if (string.IsNullOrWhiteSpace(jwtSettings.SecretKey))
+            {
+                throw new InvalidOperationException(
+                    "JWT SecretKey is required when RSA certificates are not used.");
+            }
+
+            // Use symmetric key
+            validationKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings.SecretKey));
+        }
 
         services.AddAuthentication(options =>
         {
@@ -130,7 +184,7 @@ public static class DependencyInjection
                 ValidateIssuerSigningKey = true,
                 ValidIssuer = jwtSettings.Issuer,
                 ValidAudience = jwtSettings.Audience,
-                IssuerSigningKey = new SymmetricSecurityKey(key),
+                IssuerSigningKey = validationKey,
                 ClockSkew = TimeSpan.Zero
             };
         });
@@ -144,6 +198,12 @@ public static class DependencyInjection
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITenantService, TenantService>();
+
+        // Register file storage service
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
+        // Register Excel export service
+        services.AddScoped<IExcelExportService, ExcelExportService>();
 
         return services;
     }

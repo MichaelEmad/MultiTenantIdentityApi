@@ -4,46 +4,52 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth.service';
 import { TenantService } from '@core/services/tenant.service';
+import { TranslatePipe } from '@shared/pipes/translate.pipe';
+import { LanguageSwitcherComponent } from '@shared/components/language-switcher/language-switcher.component';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe, LanguageSwitcherComponent],
   template: `
     <div class="register-container">
       <div class="register-card">
-        <h2>Register</h2>
+        <div class="language-switcher-container">
+          <app-language-switcher></app-language-switcher>
+        </div>
+
+        <h2>{{ 'auth.register-title' | translate }}</h2>
         <form [formGroup]="registerForm" (ngSubmit)="onSubmit()">
           <div class="form-group">
-            <label for="tenantId">Tenant ID</label>
-            <input id="tenantId" type="text" formControlName="tenantId" placeholder="Enter tenant ID" required>
+            <label for="tenantId">{{ 'auth.tenant-id' | translate }}</label>
+            <input id="tenantId" type="text" formControlName="tenantId" [placeholder]="'auth.tenant-id' | translate" required>
           </div>
 
           <div class="form-row">
             <div class="form-group">
-              <label for="firstName">First Name</label>
-              <input id="firstName" type="text" formControlName="firstName" placeholder="First name">
+              <label for="firstName">{{ 'auth.first-name' | translate }}</label>
+              <input id="firstName" type="text" formControlName="firstName" [placeholder]="'auth.first-name' | translate">
             </div>
 
             <div class="form-group">
-              <label for="lastName">Last Name</label>
-              <input id="lastName" type="text" formControlName="lastName" placeholder="Last name">
+              <label for="lastName">{{ 'auth.last-name' | translate }}</label>
+              <input id="lastName" type="text" formControlName="lastName" [placeholder]="'auth.last-name' | translate">
             </div>
           </div>
 
           <div class="form-group">
-            <label for="email">Email</label>
-            <input id="email" type="email" formControlName="email" placeholder="Enter your email" required>
+            <label for="email">{{ 'auth.email' | translate }}</label>
+            <input id="email" type="email" formControlName="email" [placeholder]="'auth.email' | translate" required>
           </div>
 
           <div class="form-group">
-            <label for="password">Password</label>
-            <input id="password" type="password" formControlName="password" placeholder="Enter password" required>
+            <label for="password">{{ 'auth.password' | translate }}</label>
+            <input id="password" type="password" formControlName="password" [placeholder]="'auth.password' | translate" required>
           </div>
 
           <div class="form-group">
-            <label for="confirmPassword">Confirm Password</label>
-            <input id="confirmPassword" type="password" formControlName="confirmPassword" placeholder="Confirm password" required>
+            <label for="confirmPassword">{{ 'auth.confirm-password' | translate }}</label>
+            <input id="confirmPassword" type="password" formControlName="confirmPassword" [placeholder]="'auth.confirm-password' | translate" required>
           </div>
 
           @if (errorMessage) {
@@ -51,12 +57,12 @@ import { TenantService } from '@core/services/tenant.service';
           }
 
           <button type="submit" [disabled]="!registerForm.valid || loading">
-            {{ loading ? 'Registering...' : 'Register' }}
+            {{ loading ? ('common.loading' | translate) : ('auth.sign-up' | translate) }}
           </button>
         </form>
 
         <div class="login-link">
-          Already have an account? <a routerLink="/auth/login">Login</a>
+          {{ 'auth.have-account' | translate }} <a routerLink="/auth/login">{{ 'auth.login' | translate }}</a>
         </div>
       </div>
     </div>
@@ -77,6 +83,12 @@ import { TenantService } from '@core/services/tenant.service';
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       width: 100%;
       max-width: 500px;
+
+      .language-switcher-container {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
 
       h2 {
         margin-bottom: 1.5rem;

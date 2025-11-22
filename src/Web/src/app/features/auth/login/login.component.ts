@@ -4,50 +4,56 @@ import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angula
 import { Router, RouterLink } from '@angular/router';
 import { AuthService } from '@core/services/auth.service';
 import { TenantService } from '@core/services/tenant.service';
+import { TranslatePipe } from '@shared/pipes/translate.pipe';
+import { LanguageSwitcherComponent } from '@shared/components/language-switcher/language-switcher.component';
 
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, TranslatePipe, LanguageSwitcherComponent],
   template: `
     <div class="login-container">
       <div class="login-card">
-        <h2>Login</h2>
+        <div class="language-switcher-container">
+          <app-language-switcher></app-language-switcher>
+        </div>
+
+        <h2>{{ 'auth.login-title' | translate }}</h2>
         <form [formGroup]="loginForm" (ngSubmit)="onSubmit()">
           <div class="form-group">
-            <label for="tenantId">Tenant ID</label>
+            <label for="tenantId">{{ 'auth.tenant-id' | translate }}</label>
             <input
               id="tenantId"
               type="text"
               formControlName="tenantId"
-              placeholder="Enter tenant ID"
+              [placeholder]="'auth.tenant-id' | translate"
               required>
           </div>
 
           <div class="form-group">
-            <label for="email">Email</label>
+            <label for="email">{{ 'auth.email' | translate }}</label>
             <input
               id="email"
               type="email"
               formControlName="email"
-              placeholder="Enter your email"
+              [placeholder]="'auth.email' | translate"
               required>
           </div>
 
           <div class="form-group">
-            <label for="password">Password</label>
+            <label for="password">{{ 'auth.password' | translate }}</label>
             <input
               id="password"
               type="password"
               formControlName="password"
-              placeholder="Enter your password"
+              [placeholder]="'auth.password' | translate"
               required>
           </div>
 
           <div class="form-group checkbox">
             <label>
               <input type="checkbox" formControlName="rememberMe">
-              Remember me
+              {{ 'auth.remember-me' | translate }}
             </label>
           </div>
 
@@ -56,12 +62,12 @@ import { TenantService } from '@core/services/tenant.service';
           }
 
           <button type="submit" [disabled]="!loginForm.valid || loading">
-            {{ loading ? 'Logging in...' : 'Login' }}
+            {{ loading ? ('common.loading' | translate) : ('auth.sign-in' | translate) }}
           </button>
         </form>
 
         <div class="register-link">
-          Don't have an account? <a routerLink="/auth/register">Register</a>
+          {{ 'auth.no-account' | translate }} <a routerLink="/auth/register">{{ 'auth.register' | translate }}</a>
         </div>
       </div>
     </div>
@@ -82,6 +88,12 @@ import { TenantService } from '@core/services/tenant.service';
       box-shadow: 0 2px 10px rgba(0,0,0,0.1);
       width: 100%;
       max-width: 400px;
+
+      .language-switcher-container {
+        display: flex;
+        justify-content: flex-end;
+        margin-bottom: 1rem;
+      }
 
       h2 {
         margin-bottom: 1.5rem;
