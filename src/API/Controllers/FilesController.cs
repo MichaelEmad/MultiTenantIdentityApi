@@ -164,7 +164,7 @@ public class FilesController : ControllerBase
     public async Task<IActionResult> DeleteFile(string filePath)
     {
         var result = await _fileStorageService.DeleteFileAsync(filePath);
-        return result.ToActionResultOrNotFound();
+        return result.ToActionResult();
     }
 
     /// <summary>

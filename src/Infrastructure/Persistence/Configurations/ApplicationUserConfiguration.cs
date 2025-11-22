@@ -1,3 +1,4 @@
+using Finbuckle.MultiTenant;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using MultiTenantIdentityApi.Domain.Entities;
