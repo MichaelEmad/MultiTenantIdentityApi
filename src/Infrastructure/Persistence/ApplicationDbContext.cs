@@ -10,13 +10,13 @@ namespace MultiTenantIdentityApi.Infrastructure.Persistence;
 
 /// <summary>
 /// Main application database context with multi-tenant Identity support
-/// Implements shared database multi-tenancy approach using Finbuckle.MultiTenant
+/// Implements shared database multi-tenancy approach using Finbuckle.MultiTenant v7
 /// </summary>
 /// <remarks>
 /// This DbContext uses the shared database approach where:
 /// - All tenants share the same database
 /// - Data isolation is achieved through TenantId filtering
-/// - Entities implementing IMultiTenant are automatically filtered by current tenant
+/// - Entities configured with .IsMultiTenant() are automatically filtered by current tenant
 /// - Query filters ensure tenant data isolation at the EF Core level
 /// </remarks>
 public class ApplicationDbContext : MultiTenantIdentityDbContext<ApplicationUser, ApplicationRole, string>
@@ -94,13 +94,14 @@ public class ApplicationDbContext : MultiTenantIdentityDbContext<ApplicationUser
     }
 
     /// <summary>
-    /// Sets the TenantId property on all new entities implementing IMultiTenant
+    /// Sets the TenantId property on all new entities that have a TenantId property
     /// This ensures that entities are always associated with the current tenant
     /// </summary>
     /// <remarks>
     /// This is called automatically before SaveChanges/SaveChangesAsync
     /// It only affects entities in the Added state (new entities)
     /// Existing entities retain their original TenantId to prevent data leakage
+    /// Works with Finbuckle.MultiTenant v7 which uses explicit TenantId properties
     /// </remarks>
     private void SetTenantIdOnEntities()
     {
@@ -114,15 +115,22 @@ public class ApplicationDbContext : MultiTenantIdentityDbContext<ApplicationUser
         if (string.IsNullOrEmpty(tenantId))
             return;
 
-        // Find all entities implementing IMultiTenant that are being added
-        var entries = ChangeTracker.Entries<IMultiTenant>()
+        // Find all entities that are being added
+        var entries = ChangeTracker.Entries()
             .Where(e => e.State == EntityState.Added);
 
         foreach (var entry in entries)
         {
-            // Set the TenantId to the current tenant
-            // This ensures data is saved to the correct tenant
-            entry.Entity.TenantId = tenantId;
+            // Check if the entity has a TenantId property
+            var tenantIdProperty = entry.Properties
+                .FirstOrDefault(p => p.Metadata.Name == "TenantId");
+
+            if (tenantIdProperty != null && tenantIdProperty.CurrentValue == null)
+            {
+                // Set the TenantId to the current tenant
+                // This ensures data is saved to the correct tenant
+                tenantIdProperty.CurrentValue = tenantId;
+            }
         }
     }
 }
