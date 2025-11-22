@@ -71,6 +71,16 @@ MultiTenantIdentityApi/
 - ✅ **Swagger/OpenAPI** documentation
 - ✅ **CQRS Pattern** with MediatR (Application layer ready)
 - ✅ **Repository Pattern** and Unit of Work
+- ✅ **File Upload & Management**:
+  - Stream-based file operations
+  - Validation (size, type)
+  - Folder organization
+  - Multiple upload support
+- ✅ **Excel Export Service**:
+  - Generic export for any data type
+  - Custom column mappings
+  - Multi-sheet support
+  - ClosedXML integration
 
 ### Frontend (Angular 17)
 
@@ -83,6 +93,16 @@ MultiTenantIdentityApi/
 - ✅ **Lazy Loading** for optimal performance
 - ✅ **TypeScript** with strict mode
 - ✅ **SCSS** for styling
+- ✅ **Internationalization (i18n)**:
+  - English (en) and Arabic (ar) support
+  - RTL layout for Arabic
+  - JSON-based translations
+  - Language switcher component
+- ✅ **File Upload Component**:
+  - Drag & drop support
+  - Progress tracking
+  - File validation
+  - Reusable shared component
 
 ## 🚀 Getting Started
 
@@ -280,6 +300,7 @@ Once the API is running, visit:
 - AutoMapper 12.0
 - JWT Bearer Authentication
 - Swagger/OpenAPI
+- ClosedXML 0.102.2 (Excel export)
 
 ### Frontend
 - Angular 17 (Standalone Components)
@@ -288,6 +309,7 @@ Once the API is running, visit:
 - SCSS
 - Angular Router
 - Angular Forms (Reactive)
+- Custom i18n implementation (en/ar)
 
 ## 🔐 JWT Security with RSA Certificates
 
@@ -327,6 +349,66 @@ The API supports both symmetric and asymmetric (RSA) JWT signing:
 - Deployment strategies (Docker, Kubernetes, Azure)
 - Certificate rotation
 - Troubleshooting
+
+## 📦 Additional Features
+
+### File Upload & Management
+
+The application includes a comprehensive file storage system:
+
+- **Backend**: `IFileStorageService` with local file system implementation
+- **Frontend**: Reusable `FileUploadComponent` with drag & drop
+- **Features**: File validation, progress tracking, folder organization
+- **API Endpoints**: Upload, download, delete, list files
+
+**Usage Example:**
+```html
+<app-file-upload
+  [multiple]="true"
+  [maxSize]="10"
+  [allowedTypes]="['.pdf', '.jpg', '.png']"
+  (filesUploaded)="onFilesUploaded($event)">
+</app-file-upload>
+```
+
+### Excel Export
+
+Generic Excel export service for any data type:
+
+- **Backend**: `IExcelExportService` using ClosedXML
+- **Features**: Auto-column detection, custom mappings, multi-sheet export
+- **API Endpoints**: `/api/export/tenants`, `/api/export/generic`
+
+**Usage Example:**
+```csharp
+var excelData = await _excelExportService.ExportToExcelAsync(
+    data,
+    sheetName: "Tenants");
+return File(excelData, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    $"Export_{DateTime.UtcNow:yyyyMMddHHmmss}.xlsx");
+```
+
+### Internationalization (i18n)
+
+Full English and Arabic language support:
+
+- **Languages**: English (en), Arabic (ar)
+- **RTL Support**: Automatic layout switching for Arabic
+- **Translation Pipe**: `{{ 'auth.login' | translate }}`
+- **Language Switcher**: Component for easy language toggling
+- **Translation Files**: JSON-based in `src/Web/src/assets/i18n/`
+
+**Usage Example:**
+```html
+<h2>{{ 'auth.login-title' | translate }}</h2>
+<app-language-switcher></app-language-switcher>
+```
+
+📖 **Detailed Documentation**: See [docs/FEATURES.md](docs/FEATURES.md) for complete feature documentation including:
+- File upload configuration and usage
+- Excel export examples
+- Internationalization guide
+- Best practices and future enhancements
 
 ### Quick Start - Generate Certificate
 

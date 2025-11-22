@@ -199,6 +199,12 @@ public static class DependencyInjection
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITenantService, TenantService>();
 
+        // Register file storage service
+        services.AddScoped<IFileStorageService, LocalFileStorageService>();
+
+        // Register Excel export service
+        services.AddScoped<IExcelExportService, ExcelExportService>();
+
         return services;
     }
 }

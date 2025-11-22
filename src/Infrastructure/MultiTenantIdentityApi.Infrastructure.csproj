@@ -30,6 +30,9 @@
     <!-- Finbuckle MultiTenant -->
     <PackageReference Include="Finbuckle.MultiTenant" Version="7.0.2" />
     <PackageReference Include="Finbuckle.MultiTenant.EntityFrameworkCore" Version="7.0.2" />
+
+    <!-- Excel Export -->
+    <PackageReference Include="ClosedXML" Version="0.102.2" />
   </ItemGroup>
 
 </Project>
