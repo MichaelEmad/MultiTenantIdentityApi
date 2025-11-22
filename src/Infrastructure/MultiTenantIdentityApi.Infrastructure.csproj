@@ -33,6 +33,9 @@
 
     <!-- Excel Export -->
     <PackageReference Include="ClosedXML" Version="0.102.2" />
+
+    <!-- Specification Pattern -->
+    <PackageReference Include="Ardalis.Specification.EntityFrameworkCore" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
