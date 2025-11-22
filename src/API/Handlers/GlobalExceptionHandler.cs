@@ -138,12 +138,7 @@ public class GlobalExceptionHandler : IExceptionHandler
     {
         var (statusCode, title, detail) = exception switch
         {
-            // Domain-specific exceptions
-            DomainException domainEx => (
-                (int)HttpStatusCode.BadRequest,
-                "Domain Validation Error",
-                domainEx.Message
-            ),
+            // Domain-specific exceptions (most specific first)
             TenantNotFoundException tenantEx => (
                 (int)HttpStatusCode.NotFound,
                 "Tenant Not Found",
@@ -154,6 +149,11 @@ public class GlobalExceptionHandler : IExceptionHandler
                 "Forbidden - Tenant Access Denied",
                 authEx.Message
             ),
+            DomainException domainEx => (
+                (int)HttpStatusCode.BadRequest,
+                "Domain Validation Error",
+                domainEx.Message
+            ),
 
             // Authorization exceptions
             UnauthorizedAccessException => (
@@ -162,7 +162,7 @@ public class GlobalExceptionHandler : IExceptionHandler
                 "You are not authorized to access this resource"
             ),
 
-            // Argument exceptions
+            // Argument exceptions (most specific first)
             ArgumentNullException argEx => (
                 (int)HttpStatusCode.BadRequest,
                 "Invalid Request - Missing Parameter",
@@ -174,16 +174,16 @@ public class GlobalExceptionHandler : IExceptionHandler
                 argEx.Message
             ),
 
-            // Operation exceptions
-            InvalidOperationException invalidEx => (
-                (int)HttpStatusCode.BadRequest,
-                "Invalid Operation",
-                invalidEx.Message
-            ),
+            // Operation exceptions (NotSupportedException before InvalidOperationException)
             NotSupportedException notSupportedEx => (
                 (int)HttpStatusCode.BadRequest,
                 "Operation Not Supported",
                 notSupportedEx.Message
+            ),
+            InvalidOperationException invalidEx => (
+                (int)HttpStatusCode.BadRequest,
+                "Invalid Operation",
+                invalidEx.Message
             ),
 
             // Default for unknown exceptions
@@ -269,13 +269,15 @@ public class GlobalExceptionHandler : IExceptionHandler
     {
         return exception switch
         {
-            DomainException => (int)HttpStatusCode.BadRequest,
+            // More specific exceptions first
             TenantNotFoundException => (int)HttpStatusCode.NotFound,
             UnauthorizedTenantAccessException => (int)HttpStatusCode.Forbidden,
+            DomainException => (int)HttpStatusCode.BadRequest,
             UnauthorizedAccessException => (int)HttpStatusCode.Unauthorized,
+            ArgumentNullException => (int)HttpStatusCode.BadRequest,
             ArgumentException => (int)HttpStatusCode.BadRequest,
-            InvalidOperationException => (int)HttpStatusCode.BadRequest,
             NotSupportedException => (int)HttpStatusCode.BadRequest,
+            InvalidOperationException => (int)HttpStatusCode.BadRequest,
             _ => (int)HttpStatusCode.InternalServerError
         };
     }

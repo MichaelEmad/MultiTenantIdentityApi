@@ -92,8 +92,8 @@ try
         .WithMetrics(metrics => metrics
             .AddAspNetCoreInstrumentation()
             .AddHttpClientInstrumentation()
-            .AddRuntimeInstrumentation()
-            .AddProcessInstrumentation()
+            // Note: AddRuntimeInstrumentation and AddProcessInstrumentation
+            // require additional packages that may not be available in all versions
             .AddConsoleExporter()
             .AddOtlpExporter(options =>
             {
