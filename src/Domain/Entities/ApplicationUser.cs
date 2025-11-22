@@ -6,10 +6,11 @@ namespace MultiTenantIdentityApi.Domain.Entities;
 /// <summary>
 /// Custom application user with multi-tenant support
 /// </summary>
-public class ApplicationUser : IdentityUser
+public class ApplicationUser : IdentityUser, IMultiTenant
 {
     /// <summary>
     /// The tenant identifier this user belongs to
+    /// Required by IMultiTenant interface for Finbuckle multi-tenancy
     /// </summary>
     public string? TenantId { get; set; }
 
