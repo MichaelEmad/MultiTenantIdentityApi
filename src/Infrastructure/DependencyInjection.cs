@@ -1,12 +1,11 @@
+using Finbuckle.MultiTenant;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.IdentityModel.Tokens;
-using System.Text;
-using Finbuckle.MultiTenant;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using MultiTenantIdentityApi.Application.Common.Interfaces;
 using MultiTenantIdentityApi.Domain.Entities;
 using MultiTenantIdentityApi.Infrastructure.Configurations;
@@ -14,6 +13,7 @@ using MultiTenantIdentityApi.Infrastructure.MultiTenancy;
 using MultiTenantIdentityApi.Infrastructure.Persistence;
 using MultiTenantIdentityApi.Infrastructure.Security;
 using MultiTenantIdentityApi.Infrastructure.Services;
+using System.Text;
 
 namespace MultiTenantIdentityApi.Infrastructure;
 
@@ -67,7 +67,7 @@ public static class DependencyInjection
     {
         services.AddMultiTenant<AppTenantInfo>()
             .WithEFCoreStore<TenantDbContext, AppTenantInfo>()
-            .WithClaimStrategy("tenant_id")
+            .WithClaimStrategy()
             .WithHeaderStrategy("X-Tenant-Id")
             .WithRouteStrategy("tenant")
             .WithQueryStringStrategy("tenant");
