@@ -1,12 +1,11 @@
-using MultiTenantIdentityApi.Application.Common.Models;
+using Microsoft.AspNetCore.Mvc;
 using MultiTenantIdentityApi.Domain.Exceptions;
 using System.Net;
-using System.Text.Json;
 
 namespace MultiTenantIdentityApi.API.Middleware;
 
 /// <summary>
-/// Global exception handling middleware that converts exceptions to Result pattern responses
+/// Global exception handling middleware that converts exceptions to ProblemDetails responses (RFC 7807)
 /// </summary>
 public class GlobalExceptionMiddleware
 {
@@ -40,67 +39,108 @@ public class GlobalExceptionMiddleware
     {
         _logger.LogError(exception, "An unhandled exception occurred: {Message}", exception.Message);
 
-        var (statusCode, result) = exception switch
+        var problemDetails = CreateProblemDetails(context, exception);
+
+        context.Response.ContentType = "application/problem+json";
+        context.Response.StatusCode = problemDetails.Status ?? (int)HttpStatusCode.InternalServerError;
+
+        await context.Response.WriteAsJsonAsync(problemDetails);
+    }
+
+    private ProblemDetails CreateProblemDetails(HttpContext context, Exception exception)
+    {
+        var (statusCode, title, detail) = exception switch
         {
             DomainException domainEx => (
-                HttpStatusCode.BadRequest,
-                Result.Failure(domainEx.Message)
+                (int)HttpStatusCode.BadRequest,
+                "Domain Validation Error",
+                domainEx.Message
             ),
             TenantNotFoundException tenantEx => (
-                HttpStatusCode.NotFound,
-                Result.Failure(tenantEx.Message)
+                (int)HttpStatusCode.NotFound,
+                "Tenant Not Found",
+                tenantEx.Message
             ),
             UnauthorizedTenantAccessException authEx => (
-                HttpStatusCode.Forbidden,
-                Result.Failure(authEx.Message)
+                (int)HttpStatusCode.Forbidden,
+                "Forbidden",
+                authEx.Message
             ),
             UnauthorizedAccessException => (
-                HttpStatusCode.Unauthorized,
-                Result.Failure("Unauthorized access")
+                (int)HttpStatusCode.Unauthorized,
+                "Unauthorized",
+                "You are not authorized to access this resource"
             ),
             ArgumentNullException argEx => (
-                HttpStatusCode.BadRequest,
-                Result.Failure($"Required parameter is missing: {argEx.ParamName}")
+                (int)HttpStatusCode.BadRequest,
+                "Invalid Request",
+                $"Required parameter is missing: {argEx.ParamName}"
             ),
             ArgumentException argEx => (
-                HttpStatusCode.BadRequest,
-                Result.Failure(argEx.Message)
+                (int)HttpStatusCode.BadRequest,
+                "Invalid Request",
+                argEx.Message
             ),
             InvalidOperationException invalidEx => (
-                HttpStatusCode.BadRequest,
-                Result.Failure(invalidEx.Message)
+                (int)HttpStatusCode.BadRequest,
+                "Invalid Operation",
+                invalidEx.Message
             ),
             _ => (
-                HttpStatusCode.InternalServerError,
+                (int)HttpStatusCode.InternalServerError,
+                "Internal Server Error",
                 _environment.IsDevelopment()
-                    ? Result.Failure(new[] {
-                        "An internal server error occurred",
-                        exception.Message,
-                        exception.StackTrace ?? string.Empty
-                    })
-                    : Result.Failure("An internal server error occurred. Please try again later.")
+                    ? exception.Message
+                    : "An unexpected error occurred. Please try again later."
             )
         };
 
-        context.Response.ContentType = "application/json";
-        context.Response.StatusCode = (int)statusCode;
-
-        var jsonOptions = new JsonSerializerOptions
+        var problemDetails = new ProblemDetails
         {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            WriteIndented = _environment.IsDevelopment()
+            Status = statusCode,
+            Title = title,
+            Detail = detail,
+            Instance = context.Request.Path,
+            Type = GetProblemType(statusCode)
         };
 
-        var response = new
-        {
-            result.Succeeded,
-            result.Message,
-            result.Errors,
-            StatusCode = (int)statusCode,
-            TraceId = context.TraceIdentifier
-        };
+        // Add trace ID for debugging
+        problemDetails.Extensions["traceId"] = context.TraceIdentifier;
 
-        await context.Response.WriteAsync(JsonSerializer.Serialize(response, jsonOptions));
+        // In development, add exception details
+        if (_environment.IsDevelopment())
+        {
+            problemDetails.Extensions["exceptionType"] = exception.GetType().Name;
+
+            if (exception.StackTrace != null)
+            {
+                problemDetails.Extensions["stackTrace"] = exception.StackTrace;
+            }
+
+            if (exception.InnerException != null)
+            {
+                problemDetails.Extensions["innerException"] = new
+                {
+                    message = exception.InnerException.Message,
+                    type = exception.InnerException.GetType().Name
+                };
+            }
+        }
+
+        return problemDetails;
+    }
+
+    private static string GetProblemType(int statusCode)
+    {
+        return statusCode switch
+        {
+            400 => "https://tools.ietf.org/html/rfc7231#section-6.5.1", // Bad Request
+            401 => "https://tools.ietf.org/html/rfc7235#section-3.1", // Unauthorized
+            403 => "https://tools.ietf.org/html/rfc7231#section-6.5.3", // Forbidden
+            404 => "https://tools.ietf.org/html/rfc7231#section-6.5.4", // Not Found
+            500 => "https://tools.ietf.org/html/rfc7231#section-6.6.1", // Internal Server Error
+            _ => "https://tools.ietf.org/html/rfc7231#section-6.6.1"
+        };
     }
 }
 
