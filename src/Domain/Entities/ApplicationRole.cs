@@ -6,10 +6,11 @@ namespace MultiTenantIdentityApi.Domain.Entities;
 /// <summary>
 /// Custom application role with multi-tenant support
 /// </summary>
-public class ApplicationRole : IdentityRole
+public class ApplicationRole : IdentityRole, IMultiTenant
 {
     /// <summary>
     /// The tenant identifier this role belongs to
+    /// Required by IMultiTenant interface for Finbuckle multi-tenancy
     /// </summary>
     public string? TenantId { get; set; }
 
